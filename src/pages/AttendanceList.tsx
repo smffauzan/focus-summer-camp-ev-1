@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, CheckCheck, X, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { students } from "@/data/mockData";
-import { useAttendance } from "@/hooks/useAttendance";
+import { useAttendanceContext } from "@/context/AttendanceContext";
 import { StudentRow } from "@/components/StudentRow";
 import { SyncButton } from "@/components/SyncButton";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { toast } from "sonner";
 type Filter = "all" | "present" | "absent" | "unmarked";
 
 export default function AttendanceList() {
-  const { selectedDate, setSelectedDate, markAttendance, getStudentStatus, syncToSheets, syncing } = useAttendance();
+  const { selectedDate, setSelectedDate, markAttendance, getStudentStatus, syncToSheets, syncing } = useAttendanceContext();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -53,7 +53,6 @@ export default function AttendanceList() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-mono tracking-tight">ATTENDANCE</h1>
@@ -75,7 +74,6 @@ export default function AttendanceList() {
         </div>
       </div>
 
-      {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -101,7 +99,6 @@ export default function AttendanceList() {
         </div>
       </div>
 
-      {/* Batch Actions */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2 rounded-md bg-secondary border border-border/50">
           <span className="text-xs font-mono text-muted-foreground">{selected.size} selected</span>
@@ -117,7 +114,6 @@ export default function AttendanceList() {
         </div>
       )}
 
-      {/* Student List */}
       <div className="space-y-2">
         {filteredStudents.map((student) => (
           <StudentRow
