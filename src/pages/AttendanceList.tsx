@@ -14,7 +14,7 @@ import { toast } from "sonner";
 type Filter = "all" | "present" | "absent" | "unmarked";
 
 export default function AttendanceList() {
-  const { selectedDate, setSelectedDate, markAttendance, getStudentStatus, syncToSheets, syncing } = useAttendanceContext();
+  const { selectedDate, setSelectedDate, markAttendance, getStudentStatus, syncToSheets, syncing, resetStudent } = useAttendanceContext();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -123,6 +123,7 @@ export default function AttendanceList() {
             selected={selected.has(student.id)}
             onToggleSelect={toggleSelect}
             onMark={markAttendance}
+            onReset={resetStudent}
           />
         ))}
         {filteredStudents.length === 0 && (

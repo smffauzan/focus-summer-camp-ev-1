@@ -1,4 +1,4 @@
-import { Check, X } from "lucide-react";
+import { Check, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +12,7 @@ interface StudentRowProps {
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onMark: (id: string, status: "present" | "absent") => void;
+  onReset: (id: string) => void;
 }
 
 const avatarColors = [
@@ -29,7 +30,7 @@ function getColor(name: string) {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 }
 
-export function StudentRow({ student, record, selected, onToggleSelect, onMark }: StudentRowProps) {
+export function StudentRow({ student, record, selected, onToggleSelect, onMark, onReset }: StudentRowProps) {
   const status = record?.status || "unmarked";
 
   return (
@@ -63,6 +64,16 @@ export function StudentRow({ student, record, selected, onToggleSelect, onMark }
         >
           <X className="h-4 w-4" />
         </Button>
+        {status !== "unmarked" && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-muted-foreground/30 text-muted-foreground hover:bg-muted/30"
+            onClick={() => onReset(student.id)}
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       <Badge
         variant={status === "present" ? "default" : status === "absent" ? "destructive" : "outline"}

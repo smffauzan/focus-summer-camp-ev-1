@@ -45,6 +45,15 @@ export function useAttendance() {
     toast.success("Day reset");
   }, [dateKey]);
 
+  const resetStudent = useCallback(
+    (studentId: string) => {
+      setRecords((prev) =>
+        prev.filter((r) => !(r.studentId === studentId && r.date === dateKey))
+      );
+    },
+    [dateKey]
+  );
+
   const syncToSheets = useCallback(async () => {
     setSyncing(true);
     await new Promise((r) => setTimeout(r, 1500));
@@ -76,6 +85,7 @@ export function useAttendance() {
     markAttendance,
     markAllPresent,
     resetDay,
+    resetStudent,
     syncToSheets,
     syncing,
     summary,
