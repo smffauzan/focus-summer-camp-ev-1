@@ -12,6 +12,7 @@ interface StudentRowProps {
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onMark: (id: string, status: "present" | "absent") => void;
+  onReset: (id: string) => void;
 }
 
 const avatarColors = [
