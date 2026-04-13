@@ -2,8 +2,14 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { google } from "googleapis";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -46,34 +52,23 @@ console.log("✅ All environment variables validated!\n");
 app.use(cors());
 app.use(express.json());
 
-// Student name mapping - must match frontend mockData
-const studentMap = {
-  S001: "Aisha Johnson",
-  S002: "Brian Kim",
-  S003: "Carlos Rivera",
-  S004: "Diana Osei",
-  S005: "Elijah Patel",
-  S006: "Fatima Al-Rashid",
-  S007: "George Chen",
-  S008: "Hannah Brooks",
-  S009: "Ibrahim Mensah",
-  S010: "Julia Torres",
-  S011: "Kevin Nakamura",
-  S012: "Lena Ivanova",
-  S013: "Marcus Washington",
-  S014: "Nadia Okonkwo",
-  S015: "Oscar Gutierrez",
-  S016: "Priya Sharma",
-  S017: "Quincy Adams",
-  S018: "Rosa Fernandez",
-  S019: "Samuel Lee",
-  S020: "Tanya Williams",
-  S021: "Umar Diallo",
-  S022: "Victoria Nguyen",
-};
+// Load students from shared JSON file
+function loadStudents() {
+  try {
+    const studentsFilePath = path.join(__dirname, "../public/students.json");
+    const data = fs.readFileSync(studentsFilePath, "utf-8");
+    const parsed = JSON.parse(data);
+    return parsed.students || [];
+  } catch (error) {
+    console.error("Failed to load students from JSON:", error.message);
+    return [];
+  }
+}
 
 function getStudentName(studentId) {
-  return studentMap[studentId] || "Unknown Student";
+  const students = loadStudents();
+  const student = students.find((s) => s.id === studentId);
+  return student ? student.name : "Unknown Student";
 }
 
 // Matrix layout - no separate ensure headers function needed
@@ -206,6 +201,35 @@ app.post("/api/sync-attendance", async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || "Unknown error",
+    });
+  }
+});
+
+// ============================================
+// SAVE STUDENTS - Updates shared JSON file
+// ============================================
+app.post("/api/students", async (req, res) => {
+  try {
+    const { students } = req.body;
+
+    if (!students || !Array.isArray(students)) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing or invalid students array in request body",
+      });
+    }
+
+    const studentsFilePath = path.join(__dirname, "../public/students.json");
+    const studentsData = { students };
+
+    fs.writeFileSync(studentsFilePath, JSON.stringify(studentsData, null, 2));
+    console.log(`✓ Students saved to ${studentsFilePath}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error saving students:", error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to save students",
     });
   }
 });

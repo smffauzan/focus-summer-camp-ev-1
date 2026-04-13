@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, ClipboardList } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Users } from "lucide-react";
 import { AttendanceProvider } from "@/context/AttendanceContext";
 import logo from "@/assets/logo.png";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/attendance", label: "Attendance", icon: ClipboardList },
+  { to: "/students", label: "Students", icon: Users },
 ];
 
 export function AppLayout() {

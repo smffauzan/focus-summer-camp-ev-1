@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, CheckCheck, X, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { students } from "@/data/mockData";
 import { useAttendanceContext } from "@/context/AttendanceContext";
 import { StudentRow } from "@/components/StudentRow";
 import { SyncButton } from "@/components/SyncButton";
@@ -14,7 +13,7 @@ import { toast } from "sonner";
 type Filter = "all" | "present" | "absent" | "unmarked";
 
 export default function AttendanceList() {
-  const { selectedDate, setSelectedDate, markAttendance, getStudentStatus, syncToSheets, syncing, resetStudent } = useAttendanceContext();
+  const { students, selectedDate, setSelectedDate, markAttendance, getStudentStatus, syncToSheets, syncing, resetStudent } = useAttendanceContext();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());

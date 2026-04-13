@@ -1,12 +1,17 @@
-import { useState, useCallback, useMemo } from "react";
-import { students, type AttendanceRecord } from "@/data/mockData";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { getStudents, saveStudents, type Student, type AttendanceRecord } from "@/data/mockData";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
 export function useAttendance() {
+  const [students, setStudents] = useState<Student[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    getStudents().then(setStudents);
+  }, []);
 
   const dateKey = format(selectedDate, "yyyy-MM-dd");
 
@@ -99,7 +104,39 @@ export function useAttendance() {
     [records, dateKey]
   );
 
+  const addStudent = useCallback((name: string) => {
+    const newStudent: Student = {
+      id: `S${String(Date.now()).slice(-4)}`,
+      name: name.trim(),
+    };
+    const updated = [...students, newStudent];
+    setStudents(updated);
+    saveStudents(updated);
+    toast.success(`${name} added`);
+  }, [students]);
+
+  const editStudent = useCallback((id: string, newName: string) => {
+    const updated = students.map((s) =>
+      s.id === id ? { ...s, name: newName.trim() } : s
+    );
+    setStudents(updated);
+    saveStudents(updated);
+    toast.success("Student updated");
+  }, [students]);
+
+  const deleteStudent = useCallback((id: string) => {
+    const updated = students.filter((s) => s.id !== id);
+    setStudents(updated);
+    saveStudents(updated);
+    setRecords((prev) => prev.filter((r) => r.studentId !== id));
+    toast.success("Student removed");
+  }, [students]);
+
   return {
+    students,
+    addStudent,
+    editStudent,
+    deleteStudent,
     selectedDate,
     setSelectedDate,
     records,
