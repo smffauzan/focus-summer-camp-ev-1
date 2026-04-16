@@ -94,23 +94,23 @@ function getStudentName(studentId: string): string {
   return studentMap[studentId] || "Unknown Student";
 }
 
-// Helper: Ensure headers exist in sheet
+// Helper: Ensure headers exist in sheet with new structure: s_id, student_name, date1, date2, ...
 async function ensureHeaders(sheets: any, spreadsheetId: string, sheetId: number) {
   try {
     // Check if first row has headers
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `Sheet1!A1:E1`,
+      range: `Sheet1!A1:B1`,
     });
 
     const values = response.data.values;
 
-    if (!values || values.length === 0) {
+    if (!values || values.length === 0 || values[0][0] !== "s_id") {
       // Insert headers
-      const headers = [["Date", "Student ID", "Student Name", "Status", "Timestamp"]];
+      const headers = [["s_id", "student_name"]];
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Sheet1!A1:E1`,
+        range: `Sheet1!A1:B1`,
         valueInputOption: "RAW",
         requestBody: {
           values: headers,
@@ -123,7 +123,7 @@ async function ensureHeaders(sheets: any, spreadsheetId: string, sheetId: number
   }
 }
 
-// Main sync endpoint
+// Main sync endpoint with matrix layout: s_id, student_name, date1, date2, ...
 app.post("/api/sync-attendance", async (req: Request, res: Response) => {
   try {
     const { records, date }: SyncRequest = req.body;
@@ -151,64 +151,81 @@ app.post("/api/sync-attendance", async (req: Request, res: Response) => {
     // Ensure headers exist
     await ensureHeaders(sheets, spreadsheetId, 0);
 
-    // Clear existing rows for this date
-    // First, get all values to find rows to clear
+    // ========================================
+    // MATRIX/PIVOT LAYOUT SYNC
+    // Structure: s_id, student_name, date1, date2, ...
+    // ========================================
+
+    // Step 1: Read entire sheet
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `Sheet1!A2:E1000`,
+      range: `Sheet1`,
     });
+    let rows = getResponse.data.values || [];
 
-    const existingValues = getResponse.data.values || [];
-    const rowsToDelete: number[] = [];
+    // Step 2: Parse or initialize header row
+    // Header format: [s_id, student_name, date1, date2, ...]
+    if (rows.length === 0) {
+      rows.push(["s_id", "student_name"]); // Initialize with base headers
+    }
+    const header = rows[0];
 
-    // Find rows with the same date (they're in row index + 2 because headers are row 1)
-    existingValues.forEach((row, index) => {
-      if (row[0] === date) {
-        rowsToDelete.push(index + 2); // +2 because A2 is index 2 in the sheet
+    // Ensure first two columns are s_id and student_name
+    if (header.length < 2 || header[0] !== "s_id" || header[1] !== "student_name") {
+      header[0] = "s_id";
+      header[1] = "student_name";
+    }
+
+    // Step 3: Add new date column if it doesn't exist
+    let dateColIndex = header.indexOf(date);
+    if (dateColIndex === -1) {
+      header.push(date);
+      dateColIndex = header.length - 1;
+      console.log(`📅 Added new date column: ${date} at index ${dateColIndex}`);
+    } else {
+      console.log(`📅 Date column ${date} already exists at index ${dateColIndex}`);
+    }
+
+    // Step 4: Build a map of s_id -> row index
+    const studentRowMap: Record<string, number> = {};
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0]) {
+        studentRowMap[rows[i][0]] = i;
       }
+    }
+
+    // Step 5: Update or add rows for each record
+    for (const record of records) {
+      const statusChar = record.status === "present" ? "P" : "A";
+      if (studentRowMap[record.studentId] !== undefined) {
+        const rowIdx = studentRowMap[record.studentId];
+        // Pad row if needed
+        while (rows[rowIdx].length <= dateColIndex) {
+          rows[rowIdx].push("");
+        }
+        rows[rowIdx][0] = record.studentId; // s_id
+        rows[rowIdx][1] = getStudentName(record.studentId); // student_name
+        rows[rowIdx][dateColIndex] = statusChar;
+        console.log(`  ✓ Updated ${record.studentId} (${getStudentName(record.studentId)}): ${statusChar}`);
+      } else {
+        // New student row
+        const newRow = new Array(dateColIndex + 1).fill("");
+        newRow[0] = record.studentId; // s_id
+        newRow[1] = getStudentName(record.studentId); // student_name
+        newRow[dateColIndex] = statusChar;
+        rows.push(newRow);
+        studentRowMap[record.studentId] = rows.length - 1;
+        console.log(`  ✓ Added new student: ${record.studentId} (${getStudentName(record.studentId)}) with ${statusChar}`);
+      }
+    }
+
+    // Step 6: Write entire updated matrix back to sheet
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Sheet1!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: rows },
     });
-
-    // Delete rows in reverse order to avoid index shifting
-    if (rowsToDelete.length > 0) {
-      const requests = rowsToDelete.map((rowIndex) => ({
-        deleteDimension: {
-          range: {
-            sheetId: 0,
-            dimension: "ROWS",
-            startIndex: rowIndex - 1,
-            endIndex: rowIndex,
-          },
-        },
-      }));
-
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests,
-        },
-      });
-    }
-
-    // Prepare new rows
-    const newRows = records.map((record) => [
-      record.date,
-      record.studentId,
-      getStudentName(record.studentId),
-      record.status,
-      record.timestamp,
-    ]);
-
-    // Append new records
-    if (newRows.length > 0) {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: `Sheet1!A2`,
-        valueInputOption: "RAW",
-        requestBody: {
-          values: newRows,
-        },
-      });
-    }
 
     console.log(
       `Successfully synced ${records.length} attendance records for ${date}`

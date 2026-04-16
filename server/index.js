@@ -122,6 +122,7 @@ app.post("/api/sync-attendance", async (req, res) => {
 
     // ========================================
     // MATRIX/PIVOT LAYOUT SYNC
+    // Structure: s_id, student_name, date1, date2, ...
     // ========================================
 
     // Step 1: Read entire sheet
@@ -132,10 +133,17 @@ app.post("/api/sync-attendance", async (req, res) => {
     let rows = existing.data.values || [];
 
     // Step 2: Parse or initialize header row
+    // Header format: [s_id, student_name, date1, date2, ...]
     if (rows.length === 0) {
-      rows.push(["Student Name"]); // Initialize with header
+      rows.push(["s_id", "student_name"]); // Initialize with base headers
     }
     const header = rows[0];
+
+    // Ensure first two columns are s_id and student_name
+    if (header.length < 2 || header[0] !== "s_id" || header[1] !== "student_name") {
+      header[0] = "s_id";
+      header[1] = "student_name";
+    }
 
     // Step 3: Add new date column if it doesn't exist
     let dateColIndex = header.indexOf(date);
@@ -147,7 +155,7 @@ app.post("/api/sync-attendance", async (req, res) => {
       console.log(`📅 Date column ${date} already exists at index ${dateColIndex}`);
     }
 
-    // Step 4: Build a map of studentName -> row index
+    // Step 4: Build a map of s_id -> row index
     const studentRowMap = {};
     for (let i = 1; i < rows.length; i++) {
       if (rows[i][0]) {
@@ -158,22 +166,25 @@ app.post("/api/sync-attendance", async (req, res) => {
     // Step 5: Update or add rows for each record
     for (const record of records) {
       const statusChar = record.status === "present" ? "P" : "A";
-      if (studentRowMap[record.studentName] !== undefined) {
-        const rowIdx = studentRowMap[record.studentName];
+      if (studentRowMap[record.studentId] !== undefined) {
+        const rowIdx = studentRowMap[record.studentId];
         // Pad row if needed
         while (rows[rowIdx].length <= dateColIndex) {
           rows[rowIdx].push("");
         }
+        rows[rowIdx][0] = record.studentId; // s_id
+        rows[rowIdx][1] = record.studentName; // student_name
         rows[rowIdx][dateColIndex] = statusChar;
-        console.log(`  ✓ Updated ${record.studentName}: ${statusChar}`);
+        console.log(`  ✓ Updated ${record.studentId} (${record.studentName}): ${statusChar}`);
       } else {
         // New student row
         const newRow = new Array(dateColIndex + 1).fill("");
-        newRow[0] = record.studentName;
+        newRow[0] = record.studentId; // s_id
+        newRow[1] = record.studentName; // student_name
         newRow[dateColIndex] = statusChar;
         rows.push(newRow);
-        studentRowMap[record.studentName] = rows.length - 1;
-        console.log(`  ✓ Added new student: ${record.studentName} with ${statusChar}`);
+        studentRowMap[record.studentId] = rows.length - 1;
+        console.log(`  ✓ Added new student: ${record.studentId} (${record.studentName}) with ${statusChar}`);
       }
     }
 
