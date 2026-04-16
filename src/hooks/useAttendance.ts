@@ -113,9 +113,9 @@ export function useAttendance() {
   );
 
   const addStudent = useCallback(
-    async (name: string) => {
+    async (name: string, grade?: string) => {
       try {
-        const result = await apiAddStudent(name);
+        const result = await apiAddStudent(name, grade);
         if (result.success && result.student) {
           setStudents((prev) => [...prev, result.student as Student]);
           toast.success(`${name} added successfully`);

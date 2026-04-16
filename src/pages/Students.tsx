@@ -23,6 +23,7 @@ export default function Students() {
   const { students, addStudent, editStudent, deleteStudent } = useAttendanceContext();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
+  const [newStudentGrade, setNewStudentGrade] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -40,8 +41,9 @@ export default function Students() {
     if (newStudentName.trim()) {
       setIsLoading(true);
       try {
-        await addStudent(newStudentName);
+        await addStudent(newStudentName, newStudentGrade);
         setNewStudentName("");
+        setNewStudentGrade("");
         setAddDialogOpen(false);
       } finally {
         setIsLoading(false);
@@ -216,7 +218,7 @@ export default function Students() {
               value={newStudentName}
               onChange={(e) => setNewStudentName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !isLoading) {
+                if (e.key === "Enter" && !isLoading && newStudentName.trim()) {
                   handleAddStudent();
                 }
               }}
@@ -224,11 +226,28 @@ export default function Students() {
               autoFocus
               disabled={isLoading}
             />
+            <Input
+              placeholder="Enter grade (numeric)"
+              type="number"
+              value={newStudentGrade}
+              onChange={(e) => setNewStudentGrade(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isLoading && newStudentName.trim()) {
+                  handleAddStudent();
+                }
+              }}
+              className="font-mono"
+              disabled={isLoading}
+            />
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setAddDialogOpen(false)}
+              onClick={() => {
+                setAddDialogOpen(false);
+                setNewStudentName("");
+                setNewStudentGrade("");
+              }}
               className="font-mono text-sm font-semibold"
               disabled={isLoading}
             >

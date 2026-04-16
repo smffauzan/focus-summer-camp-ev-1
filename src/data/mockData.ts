@@ -30,7 +30,7 @@ export async function getStudents(): Promise<Student[]> {
   }
 }
 
-export async function addStudent(name: string): Promise<{
+export async function addStudent(name: string, grade?: string): Promise<{
   success: boolean;
   student?: Student;
   error?: string;
@@ -39,7 +39,7 @@ export async function addStudent(name: string): Promise<{
     const response = await fetch("/api/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ student: { name } }),
+      body: JSON.stringify({ student: { name, grade: grade || "" } }),
     });
 
     if (!response.ok) {
