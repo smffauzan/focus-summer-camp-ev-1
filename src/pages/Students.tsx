@@ -27,6 +27,7 @@ export default function Students() {
   const [editingName, setEditingName] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Sort students by ID number in ascending order
   const sortedStudents = [...students].sort((a, b) => {
@@ -35,11 +36,16 @@ export default function Students() {
     return numA - numB;
   });
 
-  const handleAddStudent = () => {
+  const handleAddStudent = async () => {
     if (newStudentName.trim()) {
-      addStudent(newStudentName);
-      setNewStudentName("");
-      setAddDialogOpen(false);
+      setIsLoading(true);
+      try {
+        await addStudent(newStudentName);
+        setNewStudentName("");
+        setAddDialogOpen(false);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -51,11 +57,16 @@ export default function Students() {
     }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (editingId && editingName.trim()) {
-      editStudent(editingId, editingName);
-      setEditingId(null);
-      setEditingName("");
+      setIsLoading(true);
+      try {
+        await editStudent(editingId, editingName);
+        setEditingId(null);
+        setEditingName("");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -64,11 +75,16 @@ export default function Students() {
     setDeleteConfirmOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteTargetId) {
-      deleteStudent(deleteTargetId);
-      setDeleteConfirmOpen(false);
-      setDeleteTargetId(null);
+      setIsLoading(true);
+      try {
+        await deleteStudent(deleteTargetId);
+        setDeleteConfirmOpen(false);
+        setDeleteTargetId(null);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -81,6 +97,7 @@ export default function Students() {
         <Button
           onClick={() => setAddDialogOpen(true)}
           className="font-mono text-sm font-semibold"
+          disabled={isLoading}
         >
           + ADD STUDENT
         </Button>
@@ -126,11 +143,13 @@ export default function Students() {
                             onChange={(e) => setEditingName(e.target.value)}
                             className="font-mono text-sm"
                             autoFocus
+                            disabled={isLoading}
                           />
                           <Button
                             size="sm"
                             onClick={handleSaveEdit}
                             className="font-mono text-xs"
+                            disabled={isLoading}
                           >
                             Save
                           </Button>
@@ -142,6 +161,7 @@ export default function Students() {
                               setEditingName("");
                             }}
                             className="font-mono text-xs"
+                            disabled={isLoading}
                           >
                             Cancel
                           </Button>
@@ -157,7 +177,7 @@ export default function Students() {
                           variant="ghost"
                           onClick={() => handleEditStudent(student.id)}
                           className="h-8 w-8 p-0"
-                          disabled={editingId !== null}
+                          disabled={editingId !== null || isLoading}
                           title="Edit student"
                         >
                           <Pencil className="h-4 w-4" />
@@ -167,7 +187,7 @@ export default function Students() {
                           variant="ghost"
                           onClick={() => handleDeleteClick(student.id)}
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                          disabled={editingId !== null}
+                          disabled={editingId !== null || isLoading}
                           title="Delete student"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -196,12 +216,13 @@ export default function Students() {
               value={newStudentName}
               onChange={(e) => setNewStudentName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !isLoading) {
                   handleAddStudent();
                 }
               }}
               className="font-mono"
               autoFocus
+              disabled={isLoading}
             />
           </div>
           <DialogFooter>
@@ -209,14 +230,16 @@ export default function Students() {
               variant="outline"
               onClick={() => setAddDialogOpen(false)}
               className="font-mono text-sm font-semibold"
+              disabled={isLoading}
             >
               Cancel
             </Button>
             <Button
               onClick={handleAddStudent}
               className="font-mono text-sm font-semibold"
+              disabled={isLoading || !newStudentName.trim()}
             >
-              Add Student
+              {isLoading ? "Adding..." : "Add Student"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -233,14 +256,15 @@ export default function Students() {
             attendance records. This action cannot be undone.
           </AlertDialogDescription>
           <div className="flex gap-3 justify-end mt-6">
-            <AlertDialogCancel className="font-mono text-sm font-semibold">
+            <AlertDialogCancel className="font-mono text-sm font-semibold" disabled={isLoading}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className="font-mono text-sm font-semibold bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isLoading}
             >
-              Delete
+              {isLoading ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

@@ -1,5 +1,13 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { getStudents, saveStudents, type Student, type AttendanceRecord } from "@/data/mockData";
+import {
+  getStudents,
+  saveStudents,
+  addStudent as apiAddStudent,
+  updateStudent as apiUpdateStudent,
+  deleteStudent as apiDeleteStudent,
+  type Student,
+  type AttendanceRecord,
+} from "@/data/mockData";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -104,41 +112,58 @@ export function useAttendance() {
     [records, dateKey]
   );
 
-  const addStudent = useCallback((name: string) => {
-    // Find the highest existing numeric ID and increment by 1
-    const maxId = students.reduce((max, s) => {
-      const num = parseInt(s.id.replace(/\D/g, ""), 10);
-      return isNaN(num) ? max : Math.max(max, num);
-    }, 0);
-
-    const nextId = `S${String(maxId + 1).padStart(3, "0")}`;
-
-    const newStudent: Student = {
-      id: nextId,
-      name: name.trim(),
-    };
-    const updated = [...students, newStudent];
-    setStudents(updated);
-    saveStudents(updated);
-    toast.success(`${name} added`);
-  }, [students]);
+  const addStudent = useCallback(
+    async (name: string) => {
+      try {
+        const result = await apiAddStudent(name);
+        if (result.success && result.student) {
+          setStudents((prev) => [...prev, result.student as Student]);
+          toast.success(`${name} added successfully`);
+        } else {
+          toast.error(result.error || "Failed to add student");
+        }
+      } catch (error) {
+        console.error("Error adding student:", error);
+        toast.error("Error adding student. Please try again.");
+      }
+    },
+    []
+  );
 
   const editStudent = useCallback((id: string, newName: string) => {
-    const updated = students.map((s) =>
-      s.id === id ? { ...s, name: newName.trim() } : s
-    );
-    setStudents(updated);
-    saveStudents(updated);
-    toast.success("Student updated");
-  }, [students]);
+    apiUpdateStudent(id, newName)
+      .then((result) => {
+        if (result.success && result.student) {
+          setStudents((prev) =>
+            prev.map((s) => (s.id === id ? result.student : s))
+          );
+          toast.success("Student updated successfully");
+        } else {
+          toast.error(result.error || "Failed to update student");
+        }
+      })
+      .catch((error) => {
+        console.error("Error updating student:", error);
+        toast.error("Error updating student. Please try again.");
+      });
+  }, []);
 
   const deleteStudent = useCallback((id: string) => {
-    const updated = students.filter((s) => s.id !== id);
-    setStudents(updated);
-    saveStudents(updated);
-    setRecords((prev) => prev.filter((r) => r.studentId !== id));
-    toast.success("Student removed");
-  }, [students]);
+    apiDeleteStudent(id)
+      .then((result) => {
+        if (result.success) {
+          setStudents((prev) => prev.filter((s) => s.id !== id));
+          setRecords((prev) => prev.filter((r) => r.studentId !== id));
+          toast.success("Student removed");
+        } else {
+          toast.error(result.error || "Failed to delete student");
+        }
+      })
+      .catch((error) => {
+        console.error("Error deleting student:", error);
+        toast.error("Error deleting student. Please try again.");
+      });
+  }, []);
 
   return {
     students,

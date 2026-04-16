@@ -223,6 +223,204 @@ app.post("/api/sync-attendance", async (req: Request, res: Response) => {
   }
 });
 
+// Student management endpoints
+interface StudentData {
+  id: string;
+  name: string;
+  grade?: string;
+}
+
+interface StudentsFile {
+  students: StudentData[];
+}
+
+const STUDENTS_FILE = path.join(__dirname, "../public/students.json");
+
+// Helper: Read students from file
+function readStudents(): StudentsFile {
+  try {
+    if (fs.existsSync(STUDENTS_FILE)) {
+      const data = fs.readFileSync(STUDENTS_FILE, "utf-8");
+      return JSON.parse(data);
+    }
+    return { students: [] };
+  } catch (error) {
+    console.error("Error reading students file:", error);
+    return { students: [] };
+  }
+}
+
+// Helper: Write students to file
+function writeStudents(data: StudentsFile): void {
+  try {
+    fs.writeFileSync(STUDENTS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (error) {
+    console.error("Error writing students file:", error);
+    throw error;
+  }
+}
+
+// Helper: Generate next student ID
+function getNextStudentId(students: StudentData[]): string {
+  const maxId = students.reduce((max, s) => {
+    const num = parseInt(s.id.replace(/\D/g, ""), 10);
+    return isNaN(num) ? max : Math.max(max, num);
+  }, 0);
+
+  return `S${String(maxId + 1).padStart(3, "0")}`;
+}
+
+// GET /api/students - Fetch all students
+app.get("/api/students", (req: Request, res: Response) => {
+  try {
+    const data = readStudents();
+    res.json(data.students);
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch students",
+    });
+  }
+});
+
+// POST /api/students - Add new student or bulk save
+app.post("/api/students", (req: Request, res: Response) => {
+  try {
+    const { students: newStudents, student } = req.body as {
+      students?: StudentData[];
+      student?: { name: string; grade?: string };
+    };
+
+    const data = readStudents();
+    let savedStudent: StudentData | null = null;
+
+    if (newStudents) {
+      // Bulk save mode
+      data.students = newStudents;
+      writeStudents(data);
+      res.json({
+        success: true,
+        message: "Students saved successfully",
+        students: data.students,
+      });
+    } else if (student) {
+      // Single student add mode
+      const { name, grade } = student;
+
+      if (!name || !name.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: "Student name is required",
+        });
+      }
+
+      const newStudent: StudentData = {
+        id: getNextStudentId(data.students),
+        name: name.trim(),
+        grade: grade || "",
+      };
+
+      data.students.push(newStudent);
+      writeStudents(data);
+      savedStudent = newStudent;
+
+      res.json({
+        success: true,
+        message: "Student added successfully",
+        student: savedStudent,
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: "Missing students or student in request body",
+      });
+    }
+  } catch (error) {
+    console.error("Error saving students:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to save students",
+    });
+  }
+});
+
+// PUT /api/students/:id - Update a student
+app.put("/api/students/:id", (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, grade } = req.body as { name?: string; grade?: string };
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Student name is required",
+      });
+    }
+
+    const data = readStudents();
+    const studentIndex = data.students.findIndex((s) => s.id === id);
+
+    if (studentIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: "Student not found",
+      });
+    }
+
+    data.students[studentIndex] = {
+      ...data.students[studentIndex],
+      name: name.trim(),
+      grade: grade || data.students[studentIndex].grade,
+    };
+
+    writeStudents(data);
+
+    res.json({
+      success: true,
+      message: "Student updated successfully",
+      student: data.students[studentIndex],
+    });
+  } catch (error) {
+    console.error("Error updating student:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to update student",
+    });
+  }
+});
+
+// DELETE /api/students/:id - Delete a student
+app.delete("/api/students/:id", (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const data = readStudents();
+    const initialLength = data.students.length;
+
+    data.students = data.students.filter((s) => s.id !== id);
+
+    if (data.students.length === initialLength) {
+      return res.status(404).json({
+        success: false,
+        error: "Student not found",
+      });
+    }
+
+    writeStudents(data);
+
+    res.json({
+      success: true,
+      message: "Student deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting student:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to delete student",
+    });
+  }
+});
+
 // Health check endpoint
 app.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok" });

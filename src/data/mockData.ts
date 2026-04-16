@@ -1,6 +1,7 @@
 export interface Student {
   id: string;
   name: string;
+  grade?: string;
 }
 
 export interface AttendanceRecord {
@@ -15,13 +16,126 @@ let cachedStudents: Student[] = [];
 export async function getStudents(): Promise<Student[]> {
   if (cachedStudents.length > 0) return cachedStudents;
   try {
-    const response = await fetch("/students.json");
-    const data = await response.json();
-    cachedStudents = data.students;
-    return data.students;
+    // Fetch from backend API instead of static JSON
+    const response = await fetch("/api/students");
+    if (!response.ok) {
+      throw new Error(`Failed to fetch students: ${response.statusText}`);
+    }
+    const students = await response.json();
+    cachedStudents = students;
+    return students;
   } catch (error) {
     console.error("Failed to load students:", error);
     return [];
+  }
+}
+
+export async function addStudent(name: string): Promise<{
+  success: boolean;
+  student?: Student;
+  error?: string;
+}> {
+  try {
+    const response = await fetch("/api/students", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student: { name } }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.error || "Failed to add student",
+      };
+    }
+
+    const data = await response.json();
+    if (data.success && data.student) {
+      cachedStudents = [];
+      return { success: true, student: data.student };
+    }
+
+    return { success: false, error: "Failed to add student" };
+  } catch (error) {
+    console.error("Error adding student:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+export async function updateStudent(
+  id: string,
+  name: string
+): Promise<{
+  success: boolean;
+  student?: Student;
+  error?: string;
+}> {
+  try {
+    const response = await fetch(`/api/students/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.error || "Failed to update student",
+      };
+    }
+
+    const data = await response.json();
+    if (data.success && data.student) {
+      cachedStudents = [];
+      return { success: true, student: data.student };
+    }
+
+    return { success: false, error: "Failed to update student" };
+  } catch (error) {
+    console.error("Error updating student:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+export async function deleteStudent(id: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const response = await fetch(`/api/students/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.error || "Failed to delete student",
+      };
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      cachedStudents = [];
+      return { success: true };
+    }
+
+    return { success: false, error: "Failed to delete student" };
+  } catch (error) {
+    console.error("Error deleting student:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
   }
 }
 
@@ -34,6 +148,8 @@ export async function saveStudents(students: Student[]): Promise<void> {
     });
     if (response.ok) {
       cachedStudents = students;
+    } else {
+      console.error("Failed to save students");
     }
   } catch (error) {
     console.error("Failed to save students:", error);
